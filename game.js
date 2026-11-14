@@ -391,6 +391,8 @@ class TerritoryGame {
 
     this.effectsP1El = document.getElementById('effectsP1');
     this.effectsP2El = document.getElementById('effectsP2');
+    this.introSplash = document.getElementById('introSplash');
+    this.playGate = document.getElementById('playGate');
 
     this.sound = new SoundController();
 
@@ -416,6 +418,7 @@ class TerritoryGame {
     this.lastBlockedSoundTime = { 1: 0, 2: 0 };
 
     this.isCountingDown = false;
+    this.hasStarted = false;
     this.countdownTimerId = null;
 
     // Dynamic dropped items on the board
@@ -439,13 +442,30 @@ class TerritoryGame {
     this.particles = [];
     this.isGameOver = false;
 
-    this.initGame();
+    this.initGame(false);
     this.setupListeners();
+    this.setupIntroSequence();
     this.startRenderLoop();
   }
 
-  initGame() {
+  setupIntroSequence() {
+    window.setTimeout(() => {
+      this.introSplash.classList.add('fade-out');
+      window.setTimeout(() => {
+        this.introSplash.classList.add('hidden');
+        this.playGate.classList.remove('hidden');
+      }, 500);
+    }, 3500);
+
+    document.getElementById('playGameBtn').addEventListener('click', () => {
+      this.playGate.classList.add('hidden');
+      this.initGame();
+    });
+  }
+
+  initGame(startMatch = true) {
     this.isGameOver = false;
+    this.hasStarted = false;
     this.particles = [];
     this.gameOverModal.classList.add('hidden');
 
@@ -530,13 +550,14 @@ class TerritoryGame {
     this.grid[this.p2.y][this.p2.x] = 2;
 
     this.updateStatsUI();
-    this.startCountdown();
+    if (startMatch) this.startCountdown();
   }
 
   /**
    * 3-2-1-GO! Countdown sequence before players get control
    */
   startCountdown() {
+    this.hasStarted = true;
     this.isCountingDown = true;
     this.p1HeldKeys = [];
     this.p2HeldKeys = [];
@@ -601,7 +622,7 @@ class TerritoryGame {
     window.addEventListener('keydown', (e) => {
       // Sound / Restart hotkeys
       if (e.key === 'r' || e.key === 'R') {
-        this.initGame();
+        if (this.hasStarted || this.isGameOver) this.initGame();
         return;
       }
       if (e.key === 'm' || e.key === 'M') {
@@ -770,7 +791,7 @@ class TerritoryGame {
 
     // Auto resize when window size changes
     window.addEventListener('resize', () => {
-      if (this.gridSizeSelect && this.gridSizeSelect.value === 'auto' && !this.isGameOver) {
+      if (this.gridSizeSelect && this.gridSizeSelect.value === 'auto' && !this.isGameOver && this.hasStarted) {
         // Debounce resize
         clearTimeout(this._resizeTimer);
         this._resizeTimer = setTimeout(() => {
@@ -790,7 +811,7 @@ class TerritoryGame {
    * - Moving onto own cell: allowed, no extra points
    */
   tryMovePlayer(playerId, dx, dy) {
-    if (this.isGameOver || this.isCountingDown) return false;
+    if (!this.hasStarted || this.isGameOver || this.isCountingDown) return false;
 
     const current = playerId === 1 ? this.p1 : this.p2;
     const opponent = playerId === 1 ? this.p2 : this.p1;
@@ -1149,7 +1170,7 @@ class TerritoryGame {
    * Game tick: updates continuous movement while keys are held
    */
   update(timestamp) {
-    if (this.isGameOver || this.isCountingDown) return;
+    if (!this.hasStarted || this.isGameOver || this.isCountingDown) return;
 
     this.pollGamepads(timestamp);
 
@@ -1251,7 +1272,7 @@ class TerritoryGame {
     }
     const restart = !!primaryPad?.buttons?.[8]?.pressed; // View / Back
     const menu = !!primaryPad?.buttons?.[9]?.pressed; // Menu / Start
-    if (restart && !this.gamepadActionState.restart) this.initGame();
+    if (restart && !this.gamepadActionState.restart && (this.hasStarted || this.isGameOver)) this.initGame();
     if (menu && !this.gamepadActionState.menu) document.getElementById('settingsModal').classList.toggle('hidden');
     this.gamepadActionState.restart = restart;
     this.gamepadActionState.menu = menu;

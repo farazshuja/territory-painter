@@ -12,6 +12,10 @@
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
 </head>
 <body class="fullscreen-mode">
+  <div id="introSplash" class="intro-splash" role="img" aria-label="Ninth grade splash screen">
+    <img src="ninth-grade.jpeg" alt="Ninth grade" fetchpriority="high">
+  </div>
+
   <!-- Minimal Floating Top HUD Layer -->
   <div class="hud-top-bar">
     <!-- Player 1 (Top Left) -->
@@ -75,6 +79,16 @@
       <div class="countdown-text" id="countdownText">READY</div>
     </div>
   </main>
+
+  <section id="playGate" class="play-gate hidden" aria-labelledby="playTitle">
+    <div class="play-card">
+      <span class="play-kicker">TERRITORY PAINTER</span>
+      <h1 id="playTitle">Ready to make a splash?</h1>
+      <p>Paint the arena, scoop up power-ups, and claim the most territory.</p>
+      <button id="playGameBtn" class="action-btn primary play-button" type="button">Play</button>
+      <small>WASD + arrow keys · Xbox controller ready</small>
+    </div>
+  </section>
 
   <!-- Floating Minimal Touch D-Pads (Bottom Corners) -->
   <div class="touch-overlay">
