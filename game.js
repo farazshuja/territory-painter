@@ -424,19 +424,21 @@ class TerritoryGame {
 
     // Color definitions
     this.COLORS = {
-      EMPTY: '#0f172a',
-      EMPTY_BORDER: '#1e293b',
-      P1_TRAIL: '#7dd3fc',       // Light blue
-      P1_HEAD: '#38bdf8',        // Bright light blue box
-      P1_HEAD_BORDER: '#0284c7',
-      P1_EYES: '#0c4a6e',
-      P2_TRAIL: '#d8b4fe',       // Light purple
-      P2_HEAD: '#c084fc',        // Bright light purple box
-      P2_HEAD_BORDER: '#9333ea',
-      P2_EYES: '#581c87'
+      EMPTY: '#10162d',
+      EMPTY_BORDER: '#1e2a49',
+      P1_TRAIL: '#08cdd0',
+      P1_HEAD: '#05e7df',
+      P1_HEAD_BORDER: '#00aebc',
+      P1_EYES: '#09213b',
+      P2_TRAIL: '#d52cc5',
+      P2_HEAD: '#fa4dd4',
+      P2_HEAD_BORDER: '#ac18af',
+      P2_EYES: '#381144'
     };
 
     this.particles = [];
+    this.paintTimes = [];
+    this.playerMotion = {};
     this.isGameOver = false;
 
     this.initGame();
@@ -486,6 +488,7 @@ class TerritoryGame {
 
     // 0: Unpainted, 1: Player 1 (Blue), 2: Player 2 (Purple)
     this.grid = Array.from({ length: this.rows }, () => new Array(this.cols).fill(0));
+    this.paintTimes = Array.from({ length: this.rows }, () => new Array(this.cols).fill(0));
 
     // Player 1: Top Right corner
     this.p1 = {
@@ -495,6 +498,9 @@ class TerritoryGame {
       tiles: 1,
       name: 'Player 1 (Blue)',
       color: this.COLORS.P1_TRAIL,
+      headColor: this.COLORS.P1_HEAD,
+      borderColor: this.COLORS.P1_HEAD_BORDER,
+      eyeColor: this.COLORS.P1_EYES,
       effects: {
         speedMultiplier: 1.0,
         speedEndTime: 0,
@@ -514,6 +520,9 @@ class TerritoryGame {
       tiles: 1,
       name: 'Player 2 (Purple)',
       color: this.COLORS.P2_TRAIL,
+      headColor: this.COLORS.P2_HEAD,
+      borderColor: this.COLORS.P2_HEAD_BORDER,
+      eyeColor: this.COLORS.P2_EYES,
       effects: {
         speedMultiplier: 1.0,
         speedEndTime: 0,
@@ -528,6 +537,12 @@ class TerritoryGame {
     // Paint initial starting boxes
     this.grid[this.p1.y][this.p1.x] = 1;
     this.grid[this.p2.y][this.p2.x] = 2;
+    this.paintTimes[this.p1.y][this.p1.x] = performance.now();
+    this.paintTimes[this.p2.y][this.p2.x] = performance.now();
+    this.playerMotion = {
+      1: { dx: -1, dy: 0, movedAt: performance.now() },
+      2: { dx: 1, dy: 0, movedAt: performance.now() }
+    };
 
     this.updateStatsUI();
     this.startCountdown();
@@ -833,6 +848,7 @@ class TerritoryGame {
       }
       // GOLDEN APPLE BREACH: Conquer and steal rival territory!
       this.grid[targetY][targetX] = playerId;
+      this.paintTimes[targetY][targetX] = now;
       current.tiles += 1;
       current.score += 10;
       opponent.tiles = Math.max(0, opponent.tiles - 1);
@@ -845,10 +861,13 @@ class TerritoryGame {
     // Move is valid!
     current.x = targetX;
     current.y = targetY;
+    this.playerMotion[playerId] = { dx, dy, movedAt: now };
+    this.createInkTrail(current.x, current.y, current.color, dx, dy);
 
     // Check if new unpainted tile
     if (targetOwner === 0) {
       this.grid[targetY][targetX] = playerId;
+      this.paintTimes[targetY][targetX] = now;
       current.tiles += 1;
       current.score += 10; // +10 points per painted move
 
@@ -1004,6 +1023,19 @@ class TerritoryGame {
     const pixelY = gridY * this.boxSize + this.boxSize / 2;
     for (let i = 0; i < 6; i++) {
       this.particles.push(new Particle(pixelX, pixelY, color));
+    }
+  }
+
+  createInkTrail(gridX, gridY, color, dx, dy) {
+    const x = gridX * this.boxSize + this.boxSize / 2 - dx * 7;
+    const y = gridY * this.boxSize + this.boxSize / 2 - dy * 7;
+    for (let i = 0; i < 2; i++) {
+      const droplet = new Particle(x + (Math.random() - 0.5) * 8, y + (Math.random() - 0.5) * 8, color);
+      droplet.radius = Math.random() * 3 + 2;
+      droplet.vx = -dx * (Math.random() * 0.9 + 0.3) + (Math.random() - 0.5) * 0.8;
+      droplet.vy = -dy * (Math.random() * 0.9 + 0.3) + (Math.random() - 0.5) * 0.8;
+      droplet.decay = 0.045 + Math.random() * 0.025;
+      this.particles.push(droplet);
     }
   }
 
@@ -1367,22 +1399,8 @@ class TerritoryGame {
         const y = r * this.boxSize;
         const cell = this.grid[r][c];
 
-        if (cell === 1) {
-          // Player 1 Light Blue painted tile
-          this.ctx.fillStyle = this.COLORS.P1_TRAIL;
-          this.ctx.fillRect(x, y, this.boxSize, this.boxSize);
-
-          this.ctx.strokeStyle = 'rgba(2, 132, 199, 0.4)';
-          this.ctx.lineWidth = 1;
-          this.ctx.strokeRect(x + 0.5, y + 0.5, this.boxSize - 1, this.boxSize - 1);
-        } else if (cell === 2) {
-          // Player 2 Light Purple painted tile
-          this.ctx.fillStyle = this.COLORS.P2_TRAIL;
-          this.ctx.fillRect(x, y, this.boxSize, this.boxSize);
-
-          this.ctx.strokeStyle = 'rgba(147, 51, 234, 0.4)';
-          this.ctx.lineWidth = 1;
-          this.ctx.strokeRect(x + 0.5, y + 0.5, this.boxSize - 1, this.boxSize - 1);
+        if (cell) {
+          this.drawInkTile(x, y, cell, this.paintTimes[r][c], now, r, c);
         } else {
           // Empty tile
           this.ctx.fillStyle = this.COLORS.EMPTY;
@@ -1441,105 +1459,138 @@ class TerritoryGame {
     }
 
     // 4. Draw Player 1 Character Box (Light Blue)
-    this.drawBoxCharacter(
-      this.p1.x * this.boxSize,
-      this.p1.y * this.boxSize,
-      this.COLORS.P1_HEAD,
-      this.COLORS.P1_HEAD_BORDER,
-      this.COLORS.P1_EYES,
-      this.p1,
-      now
-    );
+    this.drawInkling(this.p1, 1, now);
 
     // 5. Draw Player 2 Character Box (Light Purple)
-    this.drawBoxCharacter(
-      this.p2.x * this.boxSize,
-      this.p2.y * this.boxSize,
-      this.COLORS.P2_HEAD,
-      this.COLORS.P2_HEAD_BORDER,
-      this.COLORS.P2_EYES,
-      this.p2,
-      now
-    );
+    this.drawInkling(this.p2, 2, now);
   }
 
-  /**
-   * Draws a 20x20 character box with glowing outline, expressive eyes, and active aura
-   */
-  drawBoxCharacter(x, y, fillColor, borderColor, eyeColor, player, now) {
+  drawInkTile(x, y, owner, paintedAt, now, row, col) {
+    const ctx = this.ctx;
+    const color = owner === 1 ? this.COLORS.P1_TRAIL : this.COLORS.P2_TRAIL;
+    const [r, g, b] = color.match(/[\da-f]{2}/gi).map(v => parseInt(v, 16));
+    const wet = Math.max(0, 1 - (now - paintedAt) / 2800);
+    const inset = 1.5;
+    const w = this.boxSize - inset * 2;
+    const h = this.boxSize - inset * 2;
+    const seed = ((row * 37 + col * 19) % 5) * 0.5;
+    const darken = 0.73 + wet * 0.27;
+    ctx.save();
+    if (wet > 0.05) {
+      ctx.shadowColor = color;
+      ctx.shadowBlur = 2 + wet * 8;
+    }
+    const gradient = ctx.createLinearGradient(x, y, x + w * 0.3, y + h);
+    gradient.addColorStop(0, `rgb(${Math.min(255,r+Math.round(50*wet))},${Math.min(255,g+Math.round(50*wet))},${Math.min(255,b+Math.round(50*wet))})`);
+    gradient.addColorStop(0.48, `rgb(${Math.round(r*darken)},${Math.round(g*darken)},${Math.round(b*darken)})`);
+    gradient.addColorStop(1, `rgb(${Math.max(0,Math.round(r*(darken-0.08)))},${Math.max(0,Math.round(g*(darken-0.08)))},${Math.max(0,Math.round(b*(darken-0.08)))})`);
+    ctx.fillStyle = gradient;
+    const radius = 4 + seed;
+    ctx.beginPath();
+    this.roundRectPath(ctx, x + inset, y + inset, w, h, radius);
+    // Rounded micro-splats soften the square grid into overlapping ink marks.
+    ctx.fill();
+    ctx.globalAlpha = wet * 0.82;
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.ellipse(x + this.boxSize * 0.43, y + 4.2, this.boxSize * 0.24, 1.15 + wet, -0.08, 0, Math.PI * 2);
+    ctx.fill();
+    if (wet > 0) {
+      ctx.globalAlpha = wet * 0.32;
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(x + 5, y + 7, 1.3, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  drawInkling(player, playerId, now) {
+    const ctx = this.ctx;
     const size = this.boxSize;
-    const pad = 1;
+    const cx = player.x * size + size / 2;
+    const cy = player.y * size + size / 2;
+    const motion = this.playerMotion[playerId] || { dx: 0, dy: 0, movedAt: now };
+    const elapsed = now - motion.movedAt;
+    const squish = elapsed < 180 ? Math.sin((elapsed / 180) * Math.PI) : 0;
+    const stretch = 1 + squish * 0.28;
+    const sx = motion.dx ? 0.86 / stretch : 1.05 * stretch;
+    const sy = motion.dy ? 0.86 / stretch : 1.05 * stretch;
+    const radius = size * 0.66;
+    const isFrozen = now < player.effects.freezeEndTime;
+    const inkColor = isFrozen ? '#72efff' : player.headColor;
 
-    this.ctx.save();
+    ctx.save();
+    ctx.translate(cx, cy + Math.sin(now / 120 + playerId) * (isFrozen ? 0 : 1.2));
+    ctx.scale(sx, sy);
 
-    // 1. Golden Apple Breach Aura
-    const hasApple = player && now < player.effects.goldenAppleEndTime;
-    if (hasApple) {
-      this.ctx.save();
-      this.ctx.strokeStyle = '#facc15';
-      this.ctx.lineWidth = 3;
-      this.ctx.shadowColor = '#facc15';
-      this.ctx.shadowBlur = 15;
-      this.ctx.strokeRect(x - 2, y - 2, size + 4, size + 4);
-      this.ctx.restore();
-
-      // Trailing golden sparkles
-      if (Math.random() < 0.25) {
-        this.particles.push(new Particle(x + size / 2, y + size / 2, '#facc15', true));
-      }
+    if (now < player.effects.goldenAppleEndTime || now < player.effects.speedEndTime) {
+      const aura = now < player.effects.goldenAppleEndTime ? '#ffd84d' : player.color;
+      ctx.strokeStyle = aura;
+      ctx.lineWidth = 2.2;
+      ctx.shadowColor = aura;
+      ctx.shadowBlur = 12;
+      ctx.beginPath();
+      ctx.arc(0, 0, radius + 3, 0, Math.PI * 2);
+      ctx.stroke();
     }
 
-    // 2. Speed / Slow aura ring
-    const hasSpeed = player && now < player.effects.speedEndTime;
-    const isFrozen = player && now < player.effects.freezeEndTime;
-    if (isFrozen) {
-      this.ctx.save();
-      this.ctx.fillStyle = 'rgba(103, 232, 249, 0.32)';
-      this.ctx.strokeStyle = '#a5f3fc';
-      this.ctx.lineWidth = 2;
-      this.ctx.shadowColor = '#67e8f9';
-      this.ctx.shadowBlur = 12;
-      this.ctx.beginPath();
-      this.roundRectPath(this.ctx, x - 3, y - 3, size + 6, size + 6, 7);
-      this.ctx.fill();
-      this.ctx.stroke();
-      this.ctx.restore();
-    }
-    if (hasSpeed) {
-      this.ctx.save();
-      const isBuff = player.effects.speedType === 'speed';
-      this.ctx.strokeStyle = isBuff ? '#10b981' : '#ef4444';
-      this.ctx.lineWidth = 1.5;
-      this.ctx.shadowColor = isBuff ? '#10b981' : '#ef4444';
-      this.ctx.shadowBlur = 8;
-      this.ctx.strokeRect(x - 1, y - 1, size + 2, size + 2);
-      this.ctx.restore();
+    // Two tapered tentacles and rounded tips create an original squid-like silhouette.
+    const facingX = motion.dx || (playerId === 1 ? -1 : 1);
+    const facingY = motion.dy;
+    const hairDirection = Math.atan2(facingY || -1, facingX);
+    ctx.fillStyle = inkColor;
+    ctx.strokeStyle = player.borderColor;
+    ctx.lineWidth = 1.8;
+    for (let i = -1; i <= 1; i++) {
+      const angle = hairDirection + i * 0.48;
+      const tipX = Math.cos(angle) * radius * 0.95;
+      const tipY = Math.sin(angle) * radius * 0.95;
+      ctx.beginPath();
+      ctx.moveTo(-radius * 0.62, -radius * 0.15 + i * 1.7);
+      ctx.quadraticCurveTo(tipX * 0.65, tipY * 0.65, tipX, tipY);
+      ctx.quadraticCurveTo(tipX * 0.72 + 2, tipY * 0.72, radius * 0.5, radius * 0.35 + i * 1.5);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
     }
 
-    // Box body
-    this.ctx.fillStyle = fillColor;
-    this.ctx.fillRect(x + pad, y + pad, size - pad * 2, size - pad * 2);
+    const body = ctx.createRadialGradient(-radius * 0.34, -radius * 0.42, 1, 0, 0, radius * 1.18);
+    body.addColorStop(0, '#ffffff');
+    body.addColorStop(0.17, inkColor);
+    body.addColorStop(1, player.borderColor);
+    ctx.fillStyle = body;
+    ctx.strokeStyle = '#f6ffff';
+    ctx.lineWidth = 2.3;
+    ctx.shadowColor = inkColor;
+    ctx.shadowBlur = 11;
+    ctx.beginPath();
+    ctx.ellipse(0, 0, radius * 0.76, radius * 0.92, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.shadowBlur = 0;
 
-    // Box border / highlight
-    this.ctx.strokeStyle = borderColor;
-    this.ctx.lineWidth = 2;
-    this.ctx.strokeRect(x + pad, y + pad, size - pad * 2, size - pad * 2);
+    // Big glossy eyes with ink-dark pupils.
+    for (const eyeX of [-radius * 0.27, radius * 0.27]) {
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.ellipse(eyeX, -radius * 0.05, radius * 0.19, radius * 0.26, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = player.eyeColor;
+      ctx.beginPath();
+      ctx.arc(eyeX + facingX * 1.3, -radius * 0.01, radius * 0.095, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(eyeX + facingX * 1.5 - 1, -radius * 0.09, 1.3, 0, Math.PI * 2);
+      ctx.fill();
+    }
 
-    // Character eyes
-    this.ctx.fillStyle = eyeColor;
-    const eyeSize = 3;
-    const eyeY = y + 6;
-    // Left eye
-    this.ctx.fillRect(x + 5, eyeY, eyeSize, eyeSize);
-    // Right eye
-    this.ctx.fillRect(x + size - 5 - eyeSize, eyeY, eyeSize, eyeSize);
-
-    // Eye glint
-    this.ctx.fillStyle = '#ffffff';
-    this.ctx.fillRect(x + 6, eyeY, 1, 1);
-    this.ctx.fillRect(x + size - 4 - eyeSize, eyeY, 1, 1);
-
-    this.ctx.restore();
+    ctx.fillStyle = player.eyeColor;
+    ctx.beginPath();
+    ctx.ellipse(0, radius * 0.43, 2.2, 1.2, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
   }
 
   startRenderLoop() {
