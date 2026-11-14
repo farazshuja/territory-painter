@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Territory Painter - 2-Player Grid Battle</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+</head>
+<body class="fullscreen-mode">
+  <!-- Minimal Floating Top HUD Layer -->
+  <div class="hud-top-bar">
+    <!-- Player 1 (Top Left) -->
+    <div class="hud-pill p1-hud" id="cardP1">
+      <div class="hud-identity">
+        <span class="hud-dot p1-dot"></span>
+        <strong class="hud-tag p1-tag">P1 Blue</strong>
+        <span class="hud-score" id="scoreP1">10</span>
+        <small class="hud-cov" id="coverageP1">0.1%</small>
+        <span class="hud-keys-hint">WASD</span>
+      </div>
+      <div class="effects-bar" id="effectsP1"></div>
+    </div>
+
+    <!-- Match Center Progress -->
+    <div class="hud-pill center-hud">
+      <div class="hud-progress-wrap">
+        <div id="barP1" class="progress-fill p1-fill" style="width: 50%;"></div>
+        <div id="barP2" class="progress-fill p2-fill" style="width: 50%;"></div>
+      </div>
+      <div class="hud-meta-row">
+        <span id="unclaimedText">Painted: 2 (0.1%)</span>
+        <span class="hud-dot-sep">•</span>
+        <span id="gameStatusText">Battle</span>
+      </div>
+    </div>
+
+    <!-- Player 2 (Top Right) -->
+    <div class="hud-pill p2-hud" id="cardP2">
+      <div class="hud-identity">
+        <span class="hud-keys-hint">▲▼◄►</span>
+        <small class="hud-cov" id="coverageP2">0.1%</small>
+        <span class="hud-score" id="scoreP2">10</span>
+        <strong class="hud-tag p2-tag">P2 Purple</strong>
+        <span class="hud-dot p2-dot"></span>
+      </div>
+      <div class="effects-bar" id="effectsP2"></div>
+    </div>
+  </div>
+
+  <!-- Minimal Floating Quick Action Icons -->
+  <aside class="floating-actions">
+    <button id="soundToggleBtn" class="floating-btn" title="Toggle Sound (M)">
+      <span id="soundIcon">🔊</span>
+    </button>
+    <button id="settingsBtn" class="floating-btn" title="Settings (Grid, Speed)">
+      <span>⚙️</span>
+    </button>
+    <button id="howToPlayBtn" class="floating-btn" title="Game Rules">
+      <span>❓</span>
+    </button>
+    <button id="resetGameBtn" class="floating-btn primary-btn" title="Restart Match (R)">
+      <span>🔄</span>
+    </button>
+  </aside>
+
+  <!-- Maximum Area Game Canvas Arena -->
+  <main class="arena-viewport" id="arenaViewport">
+    <canvas id="gameCanvas"></canvas>
+    <div id="arenaOverlay" class="arena-overlay hidden">
+      <div class="countdown-text" id="countdownText">READY</div>
+    </div>
+  </main>
+
+  <!-- Floating Minimal Touch D-Pads (Bottom Corners) -->
+  <div class="touch-overlay">
+    <!-- P1 Bottom Left D-Pad -->
+    <div class="floating-dpad p1-float-dpad">
+      <div class="dpad-grid">
+        <div></div>
+        <button class="dpad-btn" data-player="1" data-dir="up">W</button>
+        <div></div>
+        <button class="dpad-btn" data-player="1" data-dir="left">A</button>
+        <button class="dpad-btn" data-player="1" data-dir="down">S</button>
+        <button class="dpad-btn" data-player="1" data-dir="right">D</button>
+      </div>
+    </div>
+
+    <!-- P2 Bottom Right D-Pad -->
+    <div class="floating-dpad p2-float-dpad">
+      <div class="dpad-grid">
+        <div></div>
+        <button class="dpad-btn" data-player="2" data-dir="up">▲</button>
+        <div></div>
+        <button class="dpad-btn" data-player="2" data-dir="left">◄</button>
+        <button class="dpad-btn" data-player="2" data-dir="down">▼</button>
+        <button class="dpad-btn" data-player="2" data-dir="right">►</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Hidden elements for internal tracking -->
+  <div style="display: none;">
+    <span id="tilesP1">1</span>
+    <span id="tilesP2">1</span>
+  </div>
+
+  <!-- Settings Modal -->
+  <div id="settingsModal" class="modal-backdrop hidden">
+    <div class="modal-card compact-card">
+      <h3>Game Settings</h3>
+      <div class="settings-form">
+        <div class="setting-row">
+          <label for="gridSizeSelect">Arena Size:</label>
+          <select id="gridSizeSelect">
+            <option value="auto" selected>Maximize Screen (Full Viewport)</option>
+            <option value="20">Compact (20 × 20)</option>
+            <option value="30">Standard (30 × 30)</option>
+            <option value="40">Huge (40 × 40)</option>
+            <option value="50">Colossal (50 × 50)</option>
+          </select>
+        </div>
+        <div class="setting-row">
+          <label for="speedSelect">Speed Pace:</label>
+          <select id="speedSelect">
+            <option value="130">Relaxed</option>
+            <option value="90" selected>Normal</option>
+            <option value="65">Fast</option>
+            <option value="45">Turbo</option>
+          </select>
+        </div>
+        <div class="setting-row">
+          <label for="touchToggleSelect">Touch D-Pads:</label>
+          <select id="touchToggleSelect">
+            <option value="auto" selected>Auto (Faint overlay)</option>
+            <option value="hide">Hide (Keyboard only)</option>
+            <option value="show">Always Visible</option>
+          </select>
+        </div>
+      </div>
+      <button id="closeSettingsBtn" class="action-btn primary">Apply & Close</button>
+    </div>
+  </div>
+
+  <!-- Game Over Modal -->
+  <div id="gameOverModal" class="modal-backdrop hidden">
+    <div class="modal-card">
+      <div class="winner-trophy" id="winnerTrophy">🏆</div>
+      <h2 id="winnerTitle" class="winner-title">PLAYER 1 WINS!</h2>
+      <p id="winnerSubtitle" class="winner-subtitle">Victory by superior territory domination!</p>
+
+      <div class="final-stats-table">
+        <div class="final-row p1-result">
+          <div class="result-player">
+            <span class="color-badge p1-bg"></span>
+            <strong>Player 1 (Blue)</strong>
+          </div>
+          <div class="result-numbers">
+            <span id="finalScoreP1">0 pts</span>
+            <small id="finalCoverageP1">(0% tiles)</small>
+          </div>
+        </div>
+
+        <div class="final-row p2-result">
+          <div class="result-player">
+            <span class="color-badge p2-bg"></span>
+            <strong>Player 2 (Purple)</strong>
+          </div>
+          <div class="result-numbers">
+            <span id="finalScoreP2">0 pts</span>
+            <small id="finalCoverageP2">(0% tiles)</small>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-actions">
+        <button id="modalRestartBtn" class="action-btn primary large-btn">Play Again (R)</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- How to Play Modal -->
+  <div id="rulesModal" class="modal-backdrop hidden">
+    <div class="modal-card rules-card">
+      <h2>How to Play</h2>
+      <ul class="rules-list">
+        <li>
+          <strong>Characters:</strong> 2 boxes of 20×20 px.
+          <br>• <span class="text-blue">Player 1 (Light Blue)</span> starts at <strong>Top-Right</strong>.
+          <br>• <span class="text-purple">Player 2 (Light Purple)</span> starts at <strong>Bottom-Left</strong>.
+        </li>
+        <li>
+          <strong>Controls:</strong> P1: <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> • P2: <kbd>▲</kbd><kbd>▼</kbd><kbd>◄</kbd><kbd>►</kbd>.
+          <br><em>Hold down keys for continuous fluid painting!</em>
+        </li>
+        <li>
+          <strong>Points:</strong> +10 points per new square painted!
+        </li>
+        <li>
+          <strong>Rules:</strong> You <strong>cannot cross or step onto the opponent's painted path</strong> unless powered up.
+        </li>
+        <li>
+          <strong>✨ Random Power-up Drops:</strong>
+          <br>Items spawn on the board and disappear after a few seconds:
+          <br>• 👟 <strong>Speed Shoes:</strong> +70% faster moves (6s)
+          <br>• 🧪 <strong>Haste Potion:</strong> Turbo 2x speed (5s)
+          <br>• ☕ <strong>Coffee:</strong> Agility boost (6s)
+          <br>• 🍔 <strong>Heavy Burger:</strong> Slows you down (5s)
+          <br>• 🍏 <strong>Golden Apple (Rare):</strong> 🌟 <strong>Territory Breach!</strong> For 3 seconds, walk through, breach, and steal the other player's territory!
+        </li>
+      </ul>
+      <button id="closeRulesBtn" class="action-btn primary">Got it!</button>
+    </div>
+  </div>
+
+  <script src="game.js"></script>
+</body>
+</html>
