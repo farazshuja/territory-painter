@@ -391,6 +391,9 @@ class TerritoryGame {
 
     this.effectsP1El = document.getElementById('effectsP1');
     this.effectsP2El = document.getElementById('effectsP2');
+    this.scoreCardP1 = document.getElementById('cardP1');
+    this.scoreCardP2 = document.getElementById('cardP2');
+    this.scoreCardRects = {};
     this.introSplash = document.getElementById('introSplash');
     this.playGate = document.getElementById('playGate');
 
@@ -486,8 +489,8 @@ class TerritoryGame {
       // Use maximum available screen area!
       const availW = window.innerWidth;
       const availH = window.innerHeight;
-      this.cols = Math.max(15, Math.floor(availW / this.boxSize));
-      this.rows = Math.max(15, Math.floor(availH / this.boxSize));
+      this.cols = Math.max(5, Math.floor((availW - 200) / this.boxSize));
+      this.rows = Math.max(5, Math.floor((availH - 100) / this.boxSize));
     } else {
       this.gridSize = parseInt(this.gridSizeSelect.value, 10) || 25;
       this.cols = this.gridSize;
@@ -570,7 +573,7 @@ class TerritoryGame {
       { text: '3', isGo: false, status: 'Starting in 3...' },
       { text: '2', isGo: false, status: 'Starting in 2...' },
       { text: '1', isGo: false, status: 'Starting in 1...' },
-      { text: 'GO!', isGo: true, status: 'Battle In Progress!' }
+      { text: 'GO!', isGo: true, status: 'Go!' }
     ];
 
     let currentStep = 0;
@@ -600,7 +603,7 @@ class TerritoryGame {
           this.arenaOverlay.classList.add('hidden');
           this.isCountingDown = false;
           this.countdownTimerId = null;
-          this.gameStatusText.textContent = 'Battle In Progress';
+          this.gameStatusText.textContent = '';
           const now = performance.now();
           this.nextMoveTime[1] = now;
           this.nextMoveTime[2] = now;
@@ -1215,6 +1218,35 @@ class TerritoryGame {
 
     // 5. Update HUD timers
     this.updateEffectsUI(timestamp);
+    this.updateScoreCardVisibility();
+  }
+
+  updateScoreCardVisibility() {
+    const canvasRect = this.canvas.getBoundingClientRect();
+    if (!canvasRect.width || !canvasRect.height) return;
+    const scaleX = canvasRect.width / this.canvas.width;
+    const scaleY = canvasRect.height / this.canvas.height;
+    const players = [this.p1, this.p2];
+    const cards = [this.scoreCardP1, this.scoreCardP2];
+    const nearPlayer = (card) => {
+      const rect = card.getBoundingClientRect();
+      if (rect.width && rect.height) this.scoreCardRects[card.id] = rect;
+      const bounds = this.scoreCardRects[card.id];
+      if (!bounds) return false;
+      const pad = 18;
+      const left = bounds.left - pad;
+      const right = bounds.right + pad;
+      const top = bounds.top - pad;
+      const bottom = bounds.bottom + pad;
+      return players.some(player => {
+        const x = canvasRect.left + (player.x + 0.5) * this.boxSize * scaleX;
+        const y = canvasRect.top + (player.y + 0.5) * this.boxSize * scaleY;
+        const radiusX = this.boxSize * 0.7 * scaleX;
+        const radiusY = this.boxSize * 0.7 * scaleY;
+        return x + radiusX >= left && x - radiusX <= right && y + radiusY >= top && y - radiusY <= bottom;
+      });
+    };
+    cards.forEach(card => card.classList.toggle('score-obscured', nearPlayer(card)));
   }
 
   pollGamepads(now) {

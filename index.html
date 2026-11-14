@@ -38,8 +38,7 @@
       </div>
       <div class="hud-meta-row">
         <span id="unclaimedText">Painted: 2 (0.1%)</span>
-        <span class="hud-dot-sep">•</span>
-        <span id="gameStatusText">Battle</span>
+        <span id="gameStatusText" hidden></span>
       </div>
     </div>
 
@@ -131,19 +130,19 @@
         <div class="setting-row">
           <label for="gridSizeSelect">Arena Size:</label>
           <select id="gridSizeSelect">
-            <option value="auto" selected>Maximize Screen (Full Viewport)</option>
-            <option value="20">Compact (20 × 20)</option>
-            <option value="30">Standard (30 × 30)</option>
-            <option value="40">Huge (40 × 40)</option>
-            <option value="50">Colossal (50 × 50)</option>
+            <option value="auto" selected>Max</option>
+            <option value="20">20 × 20</option>
+            <option value="30">30 × 30</option>
+            <option value="50">50 × 50</option>
+            <option value="80">80 × 80</option>
           </select>
         </div>
         <div class="setting-row">
           <label for="speedSelect">Speed Pace:</label>
           <select id="speedSelect">
             <option value="130">Relaxed</option>
-            <option value="90" selected>Normal</option>
-            <option value="65">Fast</option>
+            <option value="90">Normal</option>
+            <option value="65" selected>Fast</option>
             <option value="45">Turbo</option>
           </select>
         </div>
