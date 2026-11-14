@@ -298,59 +298,44 @@ class Particle {
 // Power-ups and Drop Items Configuration
 const ITEM_TYPES = [
   {
-    id: 'shoes',
-    icon: '👟',
-    name: 'Speed Shoes',
-    effectType: 'speed',
-    multiplier: 0.58, // ~70% faster
-    duration: 6000,   // 6 seconds
-    lifespan: 8000,   // stays on board for 8s
-    weight: 25,
-    sound: 'buff'
+    id: 'fries', icon: '🍟', name: 'Loaded Fries', effectType: 'slow', multiplier: 1.35,
+    duration: 5000, lifespan: 9000, weight: 12, sound: 'debuff', color: '#f97316'
   },
   {
-    id: 'potion',
-    icon: '🧪',
-    name: 'Haste Potion',
-    effectType: 'speed',
-    multiplier: 0.45, // more than 2x speed!
-    duration: 5000,   // 5 seconds
-    lifespan: 8000,
-    weight: 20,
-    sound: 'buff'
+    id: 'burger', icon: '🍔', name: 'Double Burger', effectType: 'slow', multiplier: 1.55,
+    duration: 10000, lifespan: 9000, weight: 10, sound: 'debuff', color: '#ef4444'
   },
   {
-    id: 'coffee',
-    icon: '☕',
-    name: 'Energy Coffee',
-    effectType: 'speed',
-    multiplier: 0.65, // ~50% faster
-    duration: 6000,   // 6 seconds
-    lifespan: 8000,
-    weight: 15,
-    sound: 'buff'
+    id: 'donut', icon: '🍩', name: 'Mega Donut', effectType: 'slow', multiplier: 1.8,
+    duration: 15000, lifespan: 9000, weight: 8, sound: 'debuff', color: '#db2777'
   },
   {
-    id: 'burger',
-    icon: '🍔',
-    name: 'Heavy Burger',
-    effectType: 'slow',
-    multiplier: 1.6,  // ~60% slower
-    duration: 5000,   // 5 seconds
-    lifespan: 8000,
-    weight: 25,
-    sound: 'debuff'
+    id: 'apple', icon: '🍎', name: 'Fresh Apple', effectType: 'speed', multiplier: 0.82,
+    duration: 5000, lifespan: 9000, weight: 13, sound: 'buff', color: '#22c55e'
   },
   {
-    id: 'golden_apple',
-    icon: '🍏',
-    name: 'Golden Apple',
-    effectType: 'apple',
-    isGoldenApple: true,
-    duration: 3000,   // exactly 3 seconds to breach rival territory!
-    lifespan: 8000,
-    weight: 15,       // rare!
-    sound: 'apple'
+    id: 'berries', icon: '🫐', name: 'Power Berries', effectType: 'speed', multiplier: 0.68,
+    duration: 10000, lifespan: 9000, weight: 11, sound: 'buff', color: '#6366f1'
+  },
+  {
+    id: 'salad', icon: '🥗', name: 'Turbo Salad', effectType: 'speed', multiplier: 0.55,
+    duration: 15000, lifespan: 9000, weight: 9, sound: 'buff', color: '#84cc16'
+  },
+  {
+    id: 'shoes', icon: '👟', name: 'Rocket Shoes', effectType: 'speed', multiplier: 0.48,
+    duration: 8000, lifespan: 9000, weight: 9, sound: 'buff', color: '#38bdf8'
+  },
+  {
+    id: 'skateboard', icon: '🛹', name: 'Turbo Skateboard', effectType: 'speed', multiplier: 0.38,
+    duration: 15000, lifespan: 9000, weight: 6, sound: 'buff', color: '#a855f7'
+  },
+  {
+    id: 'golden_apple', icon: '🍏', name: 'Golden Apple', effectType: 'apple', isGoldenApple: true,
+    duration: 15000, lifespan: 10000, weight: 5, sound: 'apple', color: '#facc15'
+  },
+  {
+    id: 'snow', icon: '❄', name: 'Snow Freeze', effectType: 'freeze',
+    duration: 5000, lifespan: 9000, weight: 7, sound: 'debuff', color: '#67e8f9'
   }
 ];
 
@@ -424,6 +409,9 @@ class TerritoryGame {
     this.p2HeldKeys = [];
     this.p1DpadDir = null;
     this.p2DpadDir = null;
+    this.gamepadState = {};
+    this.gamepadActionState = {};
+    this.itemIcons = new Map();
     this.nextMoveTime = { 1: 0, 2: 0 };
     this.lastBlockedSoundTime = { 1: 0, 2: 0 };
 
@@ -513,7 +501,8 @@ class TerritoryGame {
         speedName: '',
         speedIcon: '',
         speedType: '',
-        goldenAppleEndTime: 0
+        goldenAppleEndTime: 0,
+        freezeEndTime: 0
       }
     };
 
@@ -531,7 +520,8 @@ class TerritoryGame {
         speedName: '',
         speedIcon: '',
         speedType: '',
-        goldenAppleEndTime: 0
+        goldenAppleEndTime: 0,
+        freezeEndTime: 0
       }
     };
 
@@ -601,6 +591,12 @@ class TerritoryGame {
   }
 
   setupListeners() {
+    window.addEventListener('gamepadconnected', () => {
+      this.gameStatusText.textContent = 'Controller Connected';
+    });
+    window.addEventListener('gamepaddisconnected', () => {
+      this.gamepadState = {};
+    });
     // Keyboard controls with continuous hold detection
     window.addEventListener('keydown', (e) => {
       // Sound / Restart hotkeys
@@ -658,6 +654,11 @@ class TerritoryGame {
       this.p1DpadDir = null;
       this.p2DpadDir = null;
     });
+    window.addEventListener('keydown', (e) => {
+      if (e.code === 'ArrowUp' || e.code === 'ArrowDown' || e.code === 'ArrowLeft' || e.code === 'ArrowRight' || e.code.startsWith('Numpad')) {
+        e.preventDefault();
+      }
+    }, { passive: false });
 
     // On-screen D-pads with pointer hold support
     document.querySelectorAll('.dpad-btn').forEach(btn => {
@@ -821,7 +822,7 @@ class TerritoryGame {
     }
 
     // 3. RULE: "one user can't go over the painted line of second user."
-    // EXCEPTION: Rare Golden Apple grants 3s territory breach!
+    // EXCEPTION: Golden Apple grants a timed territory breach.
     const targetOwner = this.grid[targetY][targetX];
     const hasGoldenApple = now < current.effects.goldenAppleEndTime;
 
@@ -876,8 +877,13 @@ class TerritoryGame {
    */
   applyItemEffect(playerId, itemType, now) {
     const current = playerId === 1 ? this.p1 : this.p2;
+    const opponent = playerId === 1 ? this.p2 : this.p1;
 
-    if (itemType.isGoldenApple) {
+    if (itemType.effectType === 'freeze') {
+      opponent.effects.freezeEndTime = now + itemType.duration;
+      this.sound.playDebuff();
+      this.createItemCollectBurst(opponent.x, opponent.y, itemType.color, false);
+    } else if (itemType.isGoldenApple) {
       current.effects.goldenAppleEndTime = now + itemType.duration;
       this.sound.playGoldenApple();
       this.createItemCollectBurst(current.x, current.y, '#facc15', true);
@@ -934,10 +940,12 @@ class TerritoryGame {
       rand -= it.weight;
     }
 
+    const areaFactor = Math.sqrt((this.cols * this.rows) / (25 * 25));
+    const lifespan = Math.min(30000, Math.round(chosenType.lifespan * Math.max(1, areaFactor)));
     this.items.push({
       x: loc.x,
       y: loc.y,
-      type: chosenType,
+      type: { ...chosenType, lifespan },
       spawnTime: now
     });
   }
@@ -953,7 +961,7 @@ class TerritoryGame {
       // Golden apple active
       if (now < player.effects.goldenAppleEndTime) {
         const left = ((player.effects.goldenAppleEndTime - now) / 1000).toFixed(1);
-        html += `<span class="effect-pill effect-apple" title="Territory Breach Active!">🍏 Breach ${left}s</span>`;
+        html += `<span class="effect-pill effect-apple" title="Territory Breach Active!">✦ Breach ${left}s</span>`;
       }
 
       // Speed / Slow active
@@ -961,6 +969,11 @@ class TerritoryGame {
         const left = ((player.effects.speedEndTime - now) / 1000).toFixed(1);
         const cls = player.effects.speedType === 'speed' ? 'effect-speed' : 'effect-slow';
         html += `<span class="effect-pill ${cls}">${player.effects.speedIcon} ${left}s</span>`;
+      }
+
+      if (now < player.effects.freezeEndTime) {
+        const left = ((player.effects.freezeEndTime - now) / 1000).toFixed(1);
+        html += `<span class="effect-pill effect-slow">❄ Frozen ${left}s</span>`;
       }
 
       container.innerHTML = html;
@@ -1138,6 +1151,8 @@ class TerritoryGame {
   update(timestamp) {
     if (this.isGameOver || this.isCountingDown) return;
 
+    this.pollGamepads(timestamp);
+
     // 1. Spawning dynamic items
     if (timestamp >= this.nextItemSpawnTime && this.items.length < 4) {
       this.spawnRandomItem(timestamp);
@@ -1158,7 +1173,7 @@ class TerritoryGame {
       const latestKey = this.p1HeldKeys[this.p1HeldKeys.length - 1];
       p1Dir = P1_KEY_MAP[latestKey];
     }
-    if (p1Dir && timestamp >= this.nextMoveTime[1]) {
+    if (p1Dir && now >= this.p1.effects.freezeEndTime && timestamp >= this.nextMoveTime[1]) {
       this.tryMovePlayer(1, p1Dir.dx, p1Dir.dy);
       this.nextMoveTime[1] = timestamp + p1Interval;
     }
@@ -1172,13 +1187,173 @@ class TerritoryGame {
       const latestKey = this.p2HeldKeys[this.p2HeldKeys.length - 1];
       p2Dir = P2_KEY_MAP[latestKey];
     }
-    if (p2Dir && timestamp >= this.nextMoveTime[2]) {
+    if (p2Dir && now >= this.p2.effects.freezeEndTime && timestamp >= this.nextMoveTime[2]) {
       this.tryMovePlayer(2, p2Dir.dx, p2Dir.dy);
       this.nextMoveTime[2] = timestamp + p2Interval;
     }
 
     // 5. Update HUD timers
     this.updateEffectsUI(timestamp);
+  }
+
+  pollGamepads(now) {
+    const pads = navigator.getGamepads ? navigator.getGamepads() : [];
+    const directions = [
+      [{ dx: 0, dy: -1 }, { dx: 0, dy: 1 }, { dx: -1, dy: 0 }, { dx: 1, dy: 0 }],
+      [{ dx: 0, dy: -1 }, { dx: 0, dy: 1 }, { dx: -1, dy: 0 }, { dx: 1, dy: 0 }]
+    ];
+    const connectedPads = Array.from(pads || []).filter(Boolean);
+    for (let p = 0; p < 2; p++) {
+      const pad = connectedPads[p];
+      if (!pad) {
+        if (p === 0) {
+          this.p1DpadDir = null;
+          this.gamepadState[1] = null;
+        }
+        if (p === 1) {
+          this.p2DpadDir = null;
+          this.gamepadState[2] = null;
+        }
+        continue;
+      }
+      const playerId = p + 1;
+      const axisX = pad.axes?.[0] || 0;
+      const axisY = pad.axes?.[1] || 0;
+      const buttonUp = pad.buttons?.[12]?.pressed || pad.buttons?.[3]?.pressed;
+      const buttonDown = pad.buttons?.[13]?.pressed || pad.buttons?.[0]?.pressed;
+      const buttonLeft = pad.buttons?.[14]?.pressed || pad.buttons?.[2]?.pressed;
+      const buttonRight = pad.buttons?.[15]?.pressed || pad.buttons?.[1]?.pressed;
+      let dir = null;
+      if (buttonUp || axisY < -0.45) dir = directions[p][0];
+      else if (buttonDown || axisY > 0.45) dir = directions[p][1];
+      else if (buttonLeft || axisX < -0.45) dir = directions[p][2];
+      else if (buttonRight || axisX > 0.45) dir = directions[p][3];
+      const previous = this.gamepadState[playerId];
+      if (dir) {
+        if (!previous || dir.dx !== previous.dx || dir.dy !== previous.dy) {
+          this.tryMovePlayer(playerId, dir.dx, dir.dy);
+          this.nextMoveTime[playerId] = now + this.initialKeyDelay;
+        }
+        this.gamepadState[playerId] = dir;
+        if (playerId === 1) this.p1DpadDir = dir;
+        else this.p2DpadDir = dir;
+      } else {
+        this.gamepadState[playerId] = null;
+        if (playerId === 1) this.p1DpadDir = null;
+        else this.p2DpadDir = null;
+      }
+
+    }
+    const primaryPad = connectedPads[0];
+    if (!primaryPad) {
+      this.gamepadActionState.restart = false;
+      this.gamepadActionState.menu = false;
+    }
+    const restart = !!primaryPad?.buttons?.[8]?.pressed; // View / Back
+    const menu = !!primaryPad?.buttons?.[9]?.pressed; // Menu / Start
+    if (restart && !this.gamepadActionState.restart) this.initGame();
+    if (menu && !this.gamepadActionState.menu) document.getElementById('settingsModal').classList.toggle('hidden');
+    this.gamepadActionState.restart = restart;
+    this.gamepadActionState.menu = menu;
+  }
+
+  getItemIcon(type) {
+    if (this.itemIcons.has(type.id)) return this.itemIcons.get(type.id);
+    const icon = document.createElement('canvas');
+    icon.width = 64;
+    icon.height = 64;
+    const ctx = icon.getContext('2d');
+    const color = type.color || '#f8fafc';
+    ctx.save();
+    ctx.translate(32, 32);
+    ctx.fillStyle = 'rgba(8, 15, 35, 0.96)';
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    this.roundRectPath(ctx, -25, -25, 50, 50, 15);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = color;
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 5;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    const line = (...pts) => {
+      ctx.beginPath();
+      ctx.moveTo(pts[0][0], pts[0][1]);
+      for (const point of pts.slice(1)) ctx.lineTo(point[0], point[1]);
+      ctx.stroke();
+    };
+    switch (type.id) {
+      case 'fries':
+        ctx.fillStyle = '#fbbf24';
+        for (const x of [-12, 0, 12]) ctx.fillRect(x - 4, -17, 8, 23);
+        ctx.fillStyle = color;
+        ctx.beginPath(); this.roundRectPath(ctx, -17, 1, 34, 17, 5); ctx.fill();
+        break;
+      case 'burger':
+        ctx.fillStyle = '#fbbf24'; ctx.beginPath(); this.roundRectPath(ctx, -18, -14, 36, 14, 9); ctx.fill();
+        ctx.fillStyle = '#84cc16'; ctx.fillRect(-18, 1, 36, 5);
+        ctx.fillStyle = '#b45309'; ctx.fillRect(-17, 7, 34, 5);
+        ctx.fillStyle = '#fbbf24'; ctx.beginPath(); this.roundRectPath(ctx, -18, 13, 36, 6, 4); ctx.fill();
+        break;
+      case 'donut':
+        ctx.fillStyle = color; ctx.beginPath(); ctx.arc(0, 0, 19, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#0b1224'; ctx.beginPath(); ctx.arc(0, 0, 8, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = '#f9a8d4'; ctx.lineWidth = 3; line([-10, -12], [0, -17], [10, -13]);
+        break;
+      case 'apple':
+      case 'golden_apple':
+        ctx.fillStyle = color; ctx.beginPath(); ctx.ellipse(-3, 2, 16, 18, -0.3, 0, Math.PI * 2); ctx.fill();
+        line([0, -15], [3, -23]); ctx.fillStyle = '#4ade80'; ctx.beginPath(); ctx.ellipse(11, -17, 8, 4, -0.5, 0, Math.PI * 2); ctx.fill();
+        break;
+      case 'berries':
+        for (const [x, y] of [[-9, -5], [7, -8], [-3, 9], [12, 7]]) { ctx.beginPath(); ctx.arc(x, y, 9, 0, Math.PI * 2); ctx.fill(); }
+        ctx.fillStyle = '#a3e635'; ctx.beginPath(); ctx.ellipse(0, -16, 8, 4, -0.6, 0, Math.PI * 2); ctx.fill();
+        break;
+      case 'salad':
+        ctx.fillStyle = '#84cc16'; ctx.beginPath(); ctx.ellipse(0, 8, 19, 10, 0, 0, Math.PI * 2); ctx.fill();
+        line([-10, 6], [-4, -8], [3, 5], [10, -10]);
+        break;
+      case 'shoes':
+        ctx.fillStyle = color; ctx.beginPath(); this.roundRectPath(ctx, -18, -7, 30, 18, 7); ctx.fill();
+        line([-6, -7], [-2, 2], [4, -5]); ctx.fillStyle = '#f8fafc'; ctx.beginPath(); this.roundRectPath(ctx, -19, 11, 39, 6, 3); ctx.fill();
+        break;
+      case 'skateboard':
+        ctx.fillStyle = color; ctx.beginPath(); this.roundRectPath(ctx, -22, -7, 44, 13, 7); ctx.fill();
+        ctx.fillStyle = '#f8fafc'; ctx.beginPath(); ctx.arc(-13, 12, 4, 0, Math.PI * 2); ctx.arc(13, 12, 4, 0, Math.PI * 2); ctx.fill();
+        break;
+      case 'snow':
+        for (let a = 0; a < 3; a++) {
+          const angle = (Math.PI * a) / 3;
+          line([Math.cos(angle) * -19, Math.sin(angle) * -19], [Math.cos(angle) * 19, Math.sin(angle) * 19]);
+          for (const sign of [-1, 1]) {
+            const x = Math.cos(angle) * 12 * sign, y = Math.sin(angle) * 12 * sign;
+            line([x, y], [x - Math.cos(angle - 0.8) * 6 * sign, y - Math.sin(angle - 0.8) * 6 * sign]);
+            line([x, y], [x - Math.cos(angle + 0.8) * 6 * sign, y - Math.sin(angle + 0.8) * 6 * sign]);
+          }
+        }
+        break;
+      default:
+        ctx.beginPath(); ctx.arc(0, 0, 14, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.restore();
+    this.itemIcons.set(type.id, icon);
+    return icon;
+  }
+
+  roundRectPath(ctx, x, y, width, height, radius) {
+    if (ctx.roundRect) {
+      ctx.roundRect(x, y, width, height, radius);
+      return;
+    }
+    const r = Math.min(radius, width / 2, height / 2);
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + width, y, x + width, y + height, r);
+    ctx.arcTo(x + width, y + height, x, y + height, r);
+    ctx.arcTo(x, y + height, x, y, r);
+    ctx.arcTo(x, y, x + width, y, r);
+    ctx.closePath();
   }
 
   draw() {
@@ -1223,8 +1398,8 @@ class TerritoryGame {
     // 2. Draw Dropped Items
     for (const item of this.items) {
       const remaining = item.type.lifespan - (now - item.spawnTime);
-      // Fast blinking effect in the last 2.2 seconds before disappearing
-      if (remaining < 2200 && Math.floor(remaining / 140) % 2 === 0) {
+      // Warn when this tile is about to expire.
+      if (remaining < 1400 && Math.floor(remaining / 110) % 2 === 0) {
         continue;
       }
 
@@ -1235,31 +1410,22 @@ class TerritoryGame {
 
       this.ctx.save();
 
-      if (item.type.isGoldenApple) {
-        // Glowing golden halo for Rare Golden Apple
-        this.ctx.shadowColor = '#facc15';
-        this.ctx.shadowBlur = 12;
-        this.ctx.fillStyle = 'rgba(250, 204, 21, 0.35)';
-        this.ctx.beginPath();
-        this.ctx.arc(ix + size / 2, iy + size / 2 + bob, size * 0.55, 0, Math.PI * 2);
-        this.ctx.fill();
+      this.ctx.shadowColor = item.type.color;
+      this.ctx.shadowBlur = item.type.isGoldenApple ? 14 : 8;
+      this.ctx.fillStyle = `${item.type.color}44`;
+      this.ctx.beginPath();
+      this.ctx.arc(ix + size / 2, iy + size / 2 + bob, size * 0.57, 0, Math.PI * 2);
+      this.ctx.fill();
 
+      if (item.type.isGoldenApple) {
         // Occasional golden sparkle
         if (Math.random() < 0.1) {
           this.particles.push(new Particle(ix + size / 2, iy + size / 2, '#facc15', true));
         }
-      } else {
-        // Subtle circular backing for visibility
-        this.ctx.fillStyle = 'rgba(15, 23, 42, 0.6)';
-        this.ctx.beginPath();
-        this.ctx.arc(ix + size / 2, iy + size / 2 + bob, size * 0.45, 0, Math.PI * 2);
-        this.ctx.fill();
       }
-
-      this.ctx.font = '13px "Segoe UI Emoji", "Apple Color Emoji", sans-serif';
-      this.ctx.textAlign = 'center';
-      this.ctx.textBaseline = 'middle';
-      this.ctx.fillText(item.type.icon, ix + size / 2, iy + size / 2 + bob);
+      const icon = this.getItemIcon(item.type);
+      const iconSize = size * 1.8;
+      this.ctx.drawImage(icon, ix + (size - iconSize) / 2, iy + (size - iconSize) / 2 + bob, iconSize, iconSize);
 
       this.ctx.restore();
     }
@@ -1325,6 +1491,20 @@ class TerritoryGame {
 
     // 2. Speed / Slow aura ring
     const hasSpeed = player && now < player.effects.speedEndTime;
+    const isFrozen = player && now < player.effects.freezeEndTime;
+    if (isFrozen) {
+      this.ctx.save();
+      this.ctx.fillStyle = 'rgba(103, 232, 249, 0.32)';
+      this.ctx.strokeStyle = '#a5f3fc';
+      this.ctx.lineWidth = 2;
+      this.ctx.shadowColor = '#67e8f9';
+      this.ctx.shadowBlur = 12;
+      this.ctx.beginPath();
+      this.roundRectPath(this.ctx, x - 3, y - 3, size + 6, size + 6, 7);
+      this.ctx.fill();
+      this.ctx.stroke();
+      this.ctx.restore();
+    }
     if (hasSpeed) {
       this.ctx.save();
       const isBuff = player.effects.speedType === 'speed';

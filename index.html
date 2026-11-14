@@ -3,7 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Territory Painter - 2-Player Grid Battle</title>
+  <meta name="theme-color" content="#071226">
+  <title>Territory Painter - Arcade Arena</title>
   <link rel="stylesheet" href="style.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -19,7 +20,7 @@
         <strong class="hud-tag p1-tag">P1 Blue</strong>
         <span class="hud-score" id="scoreP1">10</span>
         <small class="hud-cov" id="coverageP1">0.1%</small>
-        <span class="hud-keys-hint">WASD</span>
+        <span class="hud-keys-hint">WASD · Xbox</span>
       </div>
       <div class="effects-bar" id="effectsP1"></div>
     </div>
@@ -40,7 +41,7 @@
     <!-- Player 2 (Top Right) -->
     <div class="hud-pill p2-hud" id="cardP2">
       <div class="hud-identity">
-        <span class="hud-keys-hint">▲▼◄►</span>
+        <span class="hud-keys-hint">Arrows · Xbox</span>
         <small class="hud-cov" id="coverageP2">0.1%</small>
         <span class="hud-score" id="scoreP2">10</span>
         <strong class="hud-tag p2-tag">P2 Purple</strong>
@@ -193,7 +194,7 @@
         </li>
         <li>
           <strong>Controls:</strong> P1: <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> • P2: <kbd>▲</kbd><kbd>▼</kbd><kbd>◄</kbd><kbd>►</kbd>.
-          <br><em>Hold down keys for continuous fluid painting!</em>
+          <br><em>Hold to paint continuously. Xbox: left stick or D-pad; Menu opens settings, View restarts.</em>
         </li>
         <li>
           <strong>Points:</strong> +10 points per new square painted!
@@ -202,13 +203,13 @@
           <strong>Rules:</strong> You <strong>cannot cross or step onto the opponent's painted path</strong> unless powered up.
         </li>
         <li>
-          <strong>✨ Random Power-up Drops:</strong>
-          <br>Items spawn on the board and disappear after a few seconds:
-          <br>• 👟 <strong>Speed Shoes:</strong> +70% faster moves (6s)
-          <br>• 🧪 <strong>Haste Potion:</strong> Turbo 2x speed (5s)
-          <br>• ☕ <strong>Coffee:</strong> Agility boost (6s)
-          <br>• 🍔 <strong>Heavy Burger:</strong> Slows you down (5s)
-          <br>• 🍏 <strong>Golden Apple (Rare):</strong> 🌟 <strong>Territory Breach!</strong> For 3 seconds, walk through, breach, and steal the other player's territory!
+          <strong>✨ Arcade Pickups:</strong>
+          <br>• 🍟 🍔 🍩 <strong>Junk food:</strong> Slows you for 5, 10, or 15 seconds.
+          <br>• 🍎 🫐 🥗 <strong>Good food:</strong> Speeds you up for 5, 10, or 15 seconds.
+          <br>• 👟 🛹 <strong>Shoes / skateboard:</strong> Big speed boosts for 8 or 15 seconds.
+          <br>• 🍏 <strong>Golden Apple:</strong> Breach and steal territory for 15 seconds.
+          <br>• ❄ <strong>Snowflake:</strong> Freezes your opponent for 5 seconds.
+          <br>Items stay visible longer on larger arenas.
         </li>
       </ul>
       <button id="closeRulesBtn" class="action-btn primary">Got it!</button>
