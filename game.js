@@ -901,6 +901,11 @@ class TerritoryGame {
       this.applyItemEffect(playerId, item.type, now);
     }
 
+    // Auto-fill any area newly enclosed by this player's paint
+    if (targetOwner !== playerId) {
+      this.checkAndFillEnclosedArea(playerId);
+    }
+
     this.updateStatsUI();
     this.checkGameStatus();
     return true;
@@ -915,6 +920,77 @@ class TerritoryGame {
       if (now < entry.endTime) m *= entry.multiplier;
     }
     return m;
+  }
+
+  /**
+   * Auto-fill enclosed territory:
+   * Flood fill from the arena border through every cell NOT owned by the player
+   * (the player's own paint blocks the fill). Any cell left unreachable is fully
+   * surrounded by the player's paint (arena walls count as a boundary edge) and
+   * is claimed: empty cells are painted (+10 pts), rival tiles inside are
+   * conquered (+10 / -10 pts), just like a Golden Apple breach.
+   */
+  checkAndFillEnclosedArea(playerId) {
+    const { cols, rows } = this;
+    const grid = this.grid;
+    const me = playerId === 1 ? this.p1 : this.p2;
+    const foe = playerId === 1 ? this.p2 : this.p1;
+
+    // 1. Mark all cells reachable from the border without crossing own paint
+    const reachable = Array.from({ length: rows }, () => new Array(cols).fill(false));
+    const queue = [];
+
+    const seed = (r, c) => {
+      if (grid[r][c] !== playerId && !reachable[r][c]) {
+        reachable[r][c] = true;
+        queue.push([r, c]);
+      }
+    };
+    for (let c = 0; c < cols; c++) {
+      seed(0, c);
+      seed(rows - 1, c);
+    }
+    for (let r = 0; r < rows; r++) {
+      seed(r, 0);
+      seed(r, cols - 1);
+    }
+
+    while (queue.length) {
+      const [r, c] = queue.pop();
+      if (r > 0 && !reachable[r - 1][c] && grid[r - 1][c] !== playerId) { reachable[r - 1][c] = true; queue.push([r - 1, c]); }
+      if (r < rows - 1 && !reachable[r + 1][c] && grid[r + 1][c] !== playerId) { reachable[r + 1][c] = true; queue.push([r + 1, c]); }
+      if (c > 0 && !reachable[r][c - 1] && grid[r][c - 1] !== playerId) { reachable[r][c - 1] = true; queue.push([r, c - 1]); }
+      if (c < cols - 1 && !reachable[r][c + 1] && grid[r][c + 1] !== playerId) { reachable[r][c + 1] = true; queue.push([r, c + 1]); }
+    }
+
+    // 2. Claim every unreachable cell (enclosed by this player's paint)
+    const filledCells = [];
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        if (reachable[r][c] || grid[r][c] === playerId) continue;
+
+        const previousOwner = grid[r][c];
+        grid[r][c] = playerId;
+        me.tiles += 1;
+        me.score += 10;
+        if (previousOwner !== 0) {
+          // Stolen rival tile inside the enclosure
+          foe.tiles = Math.max(0, foe.tiles - 1);
+          foe.score = Math.max(0, foe.score - 10);
+        }
+        filledCells.push([r, c]);
+      }
+    }
+
+    if (filledCells.length === 0) return;
+
+    // 3. Celebrate the capture
+    this.sound.playBreach();
+    const showCount = Math.min(filledCells.length, 14);
+    for (let i = 0; i < showCount; i++) {
+      const [r, c] = filledCells[Math.floor(Math.random() * filledCells.length)];
+      this.createItemCollectBurst(c, r, me.color, false);
+    }
   }
 
   /**
