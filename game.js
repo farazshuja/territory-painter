@@ -385,6 +385,7 @@ class TerritoryGame {
     this.soundIcon = document.getElementById('soundIcon');
     this.gridSizeSelect = document.getElementById('gridSizeSelect');
     this.speedSelect = document.getElementById('speedSelect');
+    this.itemQueueBar = document.getElementById('itemQueueBar');
 
     this.arenaOverlay = document.getElementById('arenaOverlay');
     this.countdownText = document.getElementById('countdownText');
@@ -428,6 +429,9 @@ class TerritoryGame {
     this.items = [];
     this.nextItemSpawnTime = 0;
 
+    // Preview queue of the next incoming items
+    this.itemQueue = [];
+
     // Color definitions
     this.COLORS = {
       EMPTY: '#0f172a',
@@ -464,6 +468,15 @@ class TerritoryGame {
       this.playGate.classList.add('hidden');
       this.initGame();
     });
+
+    // Settings entry point on the main (play) screen
+    const playGateSettingsBtn = document.getElementById('playGateSettingsBtn');
+    const settingsModal = document.getElementById('settingsModal');
+    if (playGateSettingsBtn && settingsModal) {
+      playGateSettingsBtn.addEventListener('click', () => {
+        settingsModal.classList.remove('hidden');
+      });
+    }
   }
 
   initGame(startMatch = true) {
@@ -500,6 +513,11 @@ class TerritoryGame {
     // Reset items and effects
     this.items = [];
     this.nextItemSpawnTime = performance.now() + 2500;
+
+    // Reset and fill the incoming-item preview queue
+    this.itemQueue = [];
+    this.refillItemQueue();
+    this.renderItemQueue();
     if (this.effectsP1El) this.effectsP1El.innerHTML = '';
     if (this.effectsP2El) this.effectsP2El.innerHTML = '';
 
@@ -519,11 +537,7 @@ class TerritoryGame {
       name: 'Player 1 (Blue)',
       color: this.COLORS.P1_TRAIL,
       effects: {
-        speedMultiplier: 1.0,
-        speedEndTime: 0,
-        speedName: '',
-        speedIcon: '',
-        speedType: '',
+        speedStack: [],
         goldenAppleEndTime: 0,
         freezeEndTime: 0
       }
@@ -538,11 +552,7 @@ class TerritoryGame {
       name: 'Player 2 (Purple)',
       color: this.COLORS.P2_TRAIL,
       effects: {
-        speedMultiplier: 1.0,
-        speedEndTime: 0,
-        speedName: '',
-        speedIcon: '',
-        speedType: '',
+        speedStack: [],
         goldenAppleEndTime: 0,
         freezeEndTime: 0
       }
@@ -897,6 +907,17 @@ class TerritoryGame {
   }
 
   /**
+   * Product of every active speed/slow stack entry (stacking effects)
+   */
+  getSpeedMultiplier(player, now) {
+    let m = 1.0;
+    for (const entry of player.effects.speedStack) {
+      if (now < entry.endTime) m *= entry.multiplier;
+    }
+    return m;
+  }
+
+  /**
    * Apply consumable buff/debuff
    */
   applyItemEffect(playerId, itemType, now) {
@@ -911,23 +932,70 @@ class TerritoryGame {
       current.effects.goldenAppleEndTime = now + itemType.duration;
       this.sound.playGoldenApple();
       this.createItemCollectBurst(current.x, current.y, '#facc15', true);
-    } else if (itemType.effectType === 'speed' || itemType.effectType === 'slow') {
-      current.effects.speedMultiplier = itemType.multiplier;
-      current.effects.speedEndTime = now + itemType.duration;
-      current.effects.speedName = itemType.name;
-      current.effects.speedIcon = itemType.icon;
-      current.effects.speedType = itemType.effectType;
+    } else if (itemType.effectType === 'slow') {
+      // Junk food burdens the OPPONENT; repeated pickups stack (1.55 -> 2.4 -> ...)
+      opponent.effects.speedStack.push({
+        multiplier: itemType.multiplier,
+        endTime: now + itemType.duration,
+        name: itemType.name,
+        icon: itemType.icon,
+        type: itemType.effectType
+      });
 
-      if (itemType.effectType === 'speed') {
-        this.sound.playBuff();
-        this.createItemCollectBurst(current.x, current.y, '#10b981', false);
-      } else {
-        this.sound.playDebuff();
-        this.createItemCollectBurst(current.x, current.y, '#ef4444', false);
-      }
+      this.sound.playDebuff();
+      this.createItemCollectBurst(opponent.x, opponent.y, '#ef4444', false);
+    } else if (itemType.effectType === 'speed') {
+      // Speed boosts also stack multiplicatively (0.82 x 0.82 = even faster)
+      current.effects.speedStack.push({
+        multiplier: itemType.multiplier,
+        endTime: now + itemType.duration,
+        name: itemType.name,
+        icon: itemType.icon,
+        type: itemType.effectType
+      });
+
+      this.sound.playBuff();
+      this.createItemCollectBurst(current.x, current.y, '#10b981', false);
     }
 
     this.updateEffectsUI(now);
+  }
+
+  /**
+   * Keep the incoming-item preview queue filled to 10 slots
+   */
+  refillItemQueue() {
+    while (this.itemQueue.length < 10) {
+      this.itemQueue.push(this.pickRandomItemType());
+    }
+  }
+
+  /**
+   * Pick an item type by weight
+   */
+  pickRandomItemType() {
+    const totalWeight = ITEM_TYPES.reduce((sum, it) => sum + it.weight, 0);
+    let rand = Math.random() * totalWeight;
+    for (const it of ITEM_TYPES) {
+      if (rand < it.weight) return it;
+      rand -= it.weight;
+    }
+    return ITEM_TYPES[0];
+  }
+
+  /**
+   * Render the NEXT queue strip (next 10 incoming items)
+   */
+  renderItemQueue() {
+    if (!this.itemQueueBar) return;
+    this.itemQueueBar.innerHTML = this.itemQueue.map((type, i) => {
+      const cls = type.effectType === 'speed' ? 'q-speed'
+        : type.effectType === 'slow' ? 'q-slow'
+        : type.effectType === 'freeze' ? 'q-freeze'
+        : 'q-gold';
+      const title = i === 0 ? `${type.name} — drops next` : `${type.name} — #${i + 1} in queue`;
+      return `<span class="${cls}" title="${title}">${type.icon}</span>`;
+    }).join('');
   }
 
   /**
@@ -952,17 +1020,10 @@ class TerritoryGame {
     // Pick random location
     const loc = candidates[Math.floor(Math.random() * candidates.length)];
 
-    // Pick item type by weight
-    const totalWeight = ITEM_TYPES.reduce((sum, it) => sum + it.weight, 0);
-    let rand = Math.random() * totalWeight;
-    let chosenType = ITEM_TYPES[0];
-    for (const it of ITEM_TYPES) {
-      if (rand < it.weight) {
-        chosenType = it;
-        break;
-      }
-      rand -= it.weight;
-    }
+    // Take the next type from the preview queue, then refill it
+    const chosenType = this.itemQueue.shift() || this.pickRandomItemType();
+    this.refillItemQueue();
+    this.renderItemQueue();
 
     const areaFactor = Math.sqrt((this.cols * this.rows) / (25 * 25));
     const lifespan = Math.min(30000, Math.round(chosenType.lifespan * Math.max(1, areaFactor)));
@@ -988,11 +1049,15 @@ class TerritoryGame {
         html += `<span class="effect-pill effect-apple" title="Territory Breach Active!">✦ Breach ${left}s</span>`;
       }
 
-      // Speed / Slow active
-      if (now < player.effects.speedEndTime) {
-        const left = ((player.effects.speedEndTime - now) / 1000).toFixed(1);
-        const cls = player.effects.speedType === 'speed' ? 'effect-speed' : 'effect-slow';
-        html += `<span class="effect-pill ${cls}">${player.effects.speedIcon} ${left}s</span>`;
+      // Stacked speed / slow effects: one pill per active pickup
+      let speedCount = {};
+      for (const entry of player.effects.speedStack) {
+        if (now >= entry.endTime) continue;
+        const left = ((entry.endTime - now) / 1000).toFixed(1);
+        const cls = entry.type === 'speed' ? 'effect-speed' : 'effect-slow';
+        speedCount[cls] = (speedCount[cls] || 0) + 1;
+        const label = speedCount[cls] > 1 ? `${entry.icon} ×${speedCount[cls]} ${left}s` : `${entry.icon} ${left}s`;
+        html += `<span class="effect-pill ${cls}" title="${entry.name}">${label}</span>`;
       }
 
       if (now < player.effects.freezeEndTime) {
@@ -1188,9 +1253,8 @@ class TerritoryGame {
 
     const now = timestamp;
 
-    // 3. Player 1 continuous movement with active speed multiplier
-    const p1SpeedActive = now < this.p1.effects.speedEndTime;
-    const p1Interval = this.moveInterval * (p1SpeedActive ? this.p1.effects.speedMultiplier : 1.0);
+    // 3. Player 1 continuous movement with stacked speed multipliers
+    const p1Interval = this.moveInterval * this.getSpeedMultiplier(this.p1, now);
 
     let p1Dir = this.p1DpadDir;
     if (!p1Dir && this.p1HeldKeys.length > 0) {
@@ -1202,9 +1266,8 @@ class TerritoryGame {
       this.nextMoveTime[1] = timestamp + p1Interval;
     }
 
-    // 4. Player 2 continuous movement with active speed multiplier
-    const p2SpeedActive = now < this.p2.effects.speedEndTime;
-    const p2Interval = this.moveInterval * (p2SpeedActive ? this.p2.effects.speedMultiplier : 1.0);
+    // 4. Player 2 continuous movement with stacked speed multipliers
+    const p2Interval = this.moveInterval * this.getSpeedMultiplier(this.p2, now);
 
     let p2Dir = this.p2DpadDir;
     if (!p2Dir && this.p2HeldKeys.length > 0) {
@@ -1217,6 +1280,9 @@ class TerritoryGame {
     }
 
     // 5. Update HUD timers
+    // Prune expired stacked speed entries
+    this.p1.effects.speedStack = this.p1.effects.speedStack.filter(s => now < s.endTime);
+    this.p2.effects.speedStack = this.p2.effects.speedStack.filter(s => now < s.endTime);
     this.updateEffectsUI(timestamp);
     this.updateScoreCardVisibility();
   }
@@ -1542,8 +1608,8 @@ class TerritoryGame {
       }
     }
 
-    // 2. Speed / Slow aura ring
-    const hasSpeed = player && now < player.effects.speedEndTime;
+    // 2. Speed / Slow aura ring (one per active stacked effect)
+    const activeSpeedEntries = player ? player.effects.speedStack.filter(s => now < s.endTime) : [];
     const isFrozen = player && now < player.effects.freezeEndTime;
     if (isFrozen) {
       this.ctx.save();
@@ -1558,16 +1624,17 @@ class TerritoryGame {
       this.ctx.stroke();
       this.ctx.restore();
     }
-    if (hasSpeed) {
+    activeSpeedEntries.forEach((entry, i) => {
+      const isBuff = entry.type === 'speed';
       this.ctx.save();
-      const isBuff = player.effects.speedType === 'speed';
+      const offset = 1 + i * 3;
       this.ctx.strokeStyle = isBuff ? '#10b981' : '#ef4444';
       this.ctx.lineWidth = 1.5;
       this.ctx.shadowColor = isBuff ? '#10b981' : '#ef4444';
       this.ctx.shadowBlur = 8;
-      this.ctx.strokeRect(x - 1, y - 1, size + 2, size + 2);
+      this.ctx.strokeRect(x - offset, y - offset, size + offset * 2, size + offset * 2);
       this.ctx.restore();
-    }
+    });
 
     // Box body
     this.ctx.fillStyle = fillColor;

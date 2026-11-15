@@ -40,6 +40,10 @@
         <span id="unclaimedText">Painted: 2 (0.1%)</span>
         <span id="gameStatusText" hidden></span>
       </div>
+      <div class="item-queue-wrap">
+        <small class="item-queue-label">NEXT</small>
+        <div class="item-queue" id="itemQueueBar" title="Next incoming items (leftmost drops first)"></div>
+      </div>
     </div>
 
     <!-- Player 2 (Top Right) -->
@@ -84,7 +88,10 @@
       <span class="play-kicker">TERRITORY PAINTER</span>
       <h1 id="playTitle">Ready to make a splash?</h1>
       <p>Paint the arena, scoop up power-ups, and claim the most territory.</p>
-      <button id="playGameBtn" class="action-btn primary play-button" type="button">Play</button>
+      <div class="play-actions">
+        <button id="playGameBtn" class="action-btn primary play-button" type="button">▶ Play</button>
+        <button id="playGateSettingsBtn" class="action-btn settings-button" type="button">⚙ Settings</button>
+      </div>
       <small>WASD + arrow keys · Xbox controller ready</small>
     </div>
   </section>
@@ -218,11 +225,12 @@
         </li>
         <li>
           <strong>✨ Arcade Pickups:</strong>
-          <br>• 🍟 🍔 🍩 <strong>Junk food:</strong> Slows you for 5, 10, or 15 seconds.
-          <br>• 🍎 🫐 🥗 <strong>Good food:</strong> Speeds you up for 5, 10, or 15 seconds.
+          <br>• 🍟 🍔 🍩 <strong>Junk food:</strong> Slows your <strong>opponent</strong> down for 5, 10, or 15 seconds — eating another one slows them <strong>even more</strong> (effects stack).
+          <br>• 🍎 🫐 🥗 <strong>Good food:</strong> Speeds you up for 5, 10, or 15 seconds — repeated pickups stack for extra speed.
           <br>• 👟 🛹 <strong>Shoes / skateboard:</strong> Big speed boosts for 8 or 15 seconds.
           <br>• 🍏 <strong>Golden Apple:</strong> Breach and steal territory for 15 seconds.
           <br>• ❄ <strong>Snowflake:</strong> Freezes your opponent for 5 seconds.
+          <br>The <strong>NEXT</strong> strip above the arena previews the next 10 incoming items.
           <br>Items stay visible longer on larger arenas.
         </li>
       </ul>

@@ -218,6 +218,65 @@ body.fullscreen-mode {
   opacity: 0.4;
 }
 
+/* Incoming Item Queue (NEXT strip) */
+.item-queue-wrap {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 4px;
+}
+
+.item-queue-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: var(--text-muted);
+}
+
+.item-queue {
+  display: flex;
+  gap: 3px;
+}
+
+.item-queue span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 21px;
+  height: 21px;
+  font-size: 0.72rem;
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  animation: popIn 0.2s ease-out;
+}
+
+.item-queue span.q-speed {
+  background: rgba(16, 185, 129, 0.2);
+  border-color: rgba(16, 185, 129, 0.55);
+}
+
+.item-queue span.q-slow {
+  background: rgba(239, 68, 68, 0.2);
+  border-color: rgba(239, 68, 68, 0.55);
+}
+
+.item-queue span.q-gold {
+  background: rgba(250, 204, 21, 0.25);
+  border-color: rgba(250, 204, 21, 0.7);
+}
+
+.item-queue span.q-freeze {
+  background: rgba(103, 232, 249, 0.2);
+  border-color: rgba(103, 232, 249, 0.55);
+}
+
+.item-queue span:first-child {
+  box-shadow: 0 0 8px rgba(125, 211, 252, 0.35);
+  border-color: rgba(125, 211, 252, 0.6);
+}
+
 /* Effects & Buffs Bar */
 .effects-bar {
   display: flex;
@@ -446,7 +505,7 @@ body.fullscreen-mode {
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 100;
+  z-index: 130;
   padding: 16px;
   animation: fadeIn 0.2s ease-out;
 }
@@ -756,6 +815,29 @@ body.fullscreen-mode {
 
 .play-button:hover { transform: translateY(-2px) scale(1.03); }
 .play-card small { color: #aebbd0; font-size: 0.75rem; }
+
+.play-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 5px;
+}
+
+.settings-button {
+  min-height: 54px;
+  border-radius: 14px;
+  font-size: 1rem;
+  font-weight: 700;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(125, 211, 252, 0.45);
+  color: #e2e8f0;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
+}
+
+.settings-button:hover {
+  background: rgba(125, 211, 252, 0.18);
+  transform: translateY(-2px) scale(1.03);
+}
 
 @media (prefers-reduced-motion: reduce) {
   .intro-splash, .intro-splash img, .play-gate { animation-duration: 1ms; transition-duration: 1ms; }
