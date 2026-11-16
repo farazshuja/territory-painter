@@ -222,7 +222,7 @@ body.fullscreen-mode {
 .item-queue-wrap {
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: 6px;
   margin-top: 4px;
 }
 
@@ -236,17 +236,17 @@ body.fullscreen-mode {
 
 .item-queue {
   display: flex;
-  gap: 3px;
+  gap: 4px;
 }
 
 .item-queue span {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 21px;
-  height: 21px;
-  font-size: 0.72rem;
-  border-radius: 5px;
+  width: 30px;
+  height: 30px;
+  font-size: 1.05rem;
+  border-radius: 7px;
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid rgba(255, 255, 255, 0.14);
   animation: popIn 0.2s ease-out;

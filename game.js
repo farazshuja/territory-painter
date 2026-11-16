@@ -400,6 +400,9 @@ class TerritoryGame {
 
     this.sound = new SoundController();
 
+    // Load persisted settings so the player doesn't re-apply them next time
+    this.loadSavedSettings();
+
     // Constant box size in pixels
     this.boxSize = 20;
 
@@ -477,6 +480,56 @@ class TerritoryGame {
         settingsModal.classList.remove('hidden');
       });
     }
+  }
+
+  /**
+   * Persisted settings (localStorage): arena size, speed, touch pads, sound
+   */
+  loadSavedSettings() {
+    let saved = {};
+    try {
+      saved = JSON.parse(localStorage.getItem('territoryPainterSettings')) || {};
+    } catch (e) { saved = {}; }
+
+    if (saved.gridSize && this.gridSizeSelect) {
+      // Only accept values that already exist in the dropdown
+      if ([...this.gridSizeSelect.options].some(o => o.value === String(saved.gridSize))) {
+        this.gridSizeSelect.value = String(saved.gridSize);
+      }
+    }
+    if (saved.speed && this.speedSelect) {
+      if ([...this.speedSelect.options].some(o => o.value === String(saved.speed))) {
+        this.speedSelect.value = String(saved.speed);
+      }
+      this.moveInterval = parseInt(saved.speed, 10) || 90;
+    }
+    if (saved.soundOn === false) {
+      this.sound.enabled = false;
+      if (this.soundIcon) this.soundIcon.textContent = '🔇';
+    }
+    if (saved.touch) {
+      const touchSelect = document.getElementById('touchToggleSelect');
+      if (['auto', 'hide', 'show'].includes(saved.touch) && touchSelect) {
+        touchSelect.value = saved.touch;
+        const dpads = document.querySelectorAll('.floating-dpad');
+        dpads.forEach(d => {
+          d.classList.remove('hidden-touch', 'always-show');
+          if (saved.touch === 'hide') d.classList.add('hidden-touch');
+          if (saved.touch === 'show') d.classList.add('always-show');
+        });
+      }
+    }
+  }
+
+  saveSettings() {
+    try {
+      localStorage.setItem('territoryPainterSettings', JSON.stringify({
+        gridSize: this.gridSizeSelect?.value ?? 'auto',
+        speed: this.speedSelect?.value ?? '90',
+        touch: document.getElementById('touchToggleSelect')?.value ?? 'auto',
+        soundOn: this.sound ? this.sound.enabled : true
+      }));
+    } catch (e) { /* storage unavailable */ }
   }
 
   initGame(startMatch = true) {
@@ -744,12 +797,16 @@ class TerritoryGame {
     document.getElementById('modalRestartBtn').addEventListener('click', () => this.initGame());
 
     // Grid size selector
-    this.gridSizeSelect.addEventListener('change', () => this.initGame());
+    this.gridSizeSelect.addEventListener('change', () => {
+      this.saveSettings();
+      this.initGame();
+    });
 
     // Speed selector
     if (this.speedSelect) {
       this.speedSelect.addEventListener('change', () => {
         this.moveInterval = parseInt(this.speedSelect.value, 10) || 90;
+        this.saveSettings();
       });
     }
 
@@ -757,6 +814,7 @@ class TerritoryGame {
     this.soundToggleBtn.addEventListener('click', () => {
       const on = this.sound.toggle();
       this.soundIcon.textContent = on ? '🔊' : '🔇';
+      this.saveSettings();
     });
 
     // Rules modal
@@ -793,6 +851,7 @@ class TerritoryGame {
 
     if (touchSelect) {
       touchSelect.addEventListener('change', () => {
+        this.saveSettings();
         const dpads = document.querySelectorAll('.floating-dpad');
         dpads.forEach(d => {
           d.classList.remove('hidden-touch', 'always-show');
@@ -1038,10 +1097,10 @@ class TerritoryGame {
   }
 
   /**
-   * Keep the incoming-item preview queue filled to 10 slots
+   * Keep the incoming-item preview queue filled to 5 slots
    */
   refillItemQueue() {
-    while (this.itemQueue.length < 10) {
+    while (this.itemQueue.length < 5) {
       this.itemQueue.push(this.pickRandomItemType());
     }
   }
@@ -1060,7 +1119,7 @@ class TerritoryGame {
   }
 
   /**
-   * Render the NEXT queue strip (next 10 incoming items)
+   * Render the NEXT queue strip (next 5 incoming items)
    */
   renderItemQueue() {
     if (!this.itemQueueBar) return;
@@ -1414,10 +1473,10 @@ class TerritoryGame {
       const playerId = p + 1;
       const axisX = pad.axes?.[0] || 0;
       const axisY = pad.axes?.[1] || 0;
-      const buttonUp = pad.buttons?.[12]?.pressed || pad.buttons?.[3]?.pressed;
-      const buttonDown = pad.buttons?.[13]?.pressed || pad.buttons?.[0]?.pressed;
-      const buttonLeft = pad.buttons?.[14]?.pressed || pad.buttons?.[2]?.pressed;
-      const buttonRight = pad.buttons?.[15]?.pressed || pad.buttons?.[1]?.pressed;
+      const buttonUp = pad.buttons?.[12]?.pressed;
+      const buttonDown = pad.buttons?.[13]?.pressed;
+      const buttonLeft = pad.buttons?.[14]?.pressed;
+      const buttonRight = pad.buttons?.[15]?.pressed;
       let dir = null;
       if (buttonUp || axisY < -0.45) dir = directions[p][0];
       else if (buttonDown || axisY > 0.45) dir = directions[p][1];
@@ -1439,17 +1498,37 @@ class TerritoryGame {
       }
 
     }
-    const primaryPad = connectedPads[0];
+  }
+
+  /**
+   * Poll face/shoulder action buttons on any connected pad.
+   * Runs every frame regardless of match state so X (restart) and
+   * Y (settings) also work from the play screen / game over screen.
+   */
+  pollGamepadActions() {
+    const pads = navigator.getGamepads ? navigator.getGamepads() : [];
+    const primaryPad = Array.from(pads || []).filter(Boolean)[0];
     if (!primaryPad) {
       this.gamepadActionState.restart = false;
       this.gamepadActionState.menu = false;
+      this.gamepadActionState.x = false;
+      this.gamepadActionState.y = false;
+      return;
     }
-    const restart = !!primaryPad?.buttons?.[8]?.pressed; // View / Back
-    const menu = !!primaryPad?.buttons?.[9]?.pressed; // Menu / Start
+    const restart = !!primaryPad.buttons?.[8]?.pressed; // View / Back
+    const menu = !!primaryPad.buttons?.[9]?.pressed; // Menu / Start
+    const xBtn = !!primaryPad.buttons?.[2]?.pressed; // X button
+    const yBtn = !!primaryPad.buttons?.[3]?.pressed; // Y button
     if (restart && !this.gamepadActionState.restart && (this.hasStarted || this.isGameOver)) this.initGame();
     if (menu && !this.gamepadActionState.menu) document.getElementById('settingsModal').classList.toggle('hidden');
+    // X = restart!
+    if (xBtn && !this.gamepadActionState.x && (this.hasStarted || this.isGameOver)) this.initGame();
+    // Y = settings!
+    if (yBtn && !this.gamepadActionState.y) document.getElementById('settingsModal').classList.toggle('hidden');
     this.gamepadActionState.restart = restart;
     this.gamepadActionState.menu = menu;
+    this.gamepadActionState.x = xBtn;
+    this.gamepadActionState.y = yBtn;
   }
 
   getItemIcon(type) {
@@ -1740,6 +1819,7 @@ class TerritoryGame {
 
   startRenderLoop() {
     const loop = (timestamp) => {
+      this.pollGamepadActions();
       this.update(timestamp);
       this.draw();
       requestAnimationFrame(loop);
